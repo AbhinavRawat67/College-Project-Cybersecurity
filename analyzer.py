@@ -8,7 +8,7 @@ def run_analyzer():
     # ------------------------------
     # CONFIG & STATE
     # ------------------------------
-    LOG_PATTERN = re.compile(r"\[(.*?)\]\s+(LOGIN FAILED|LOGIN SUCCESS|REGISTER FAILED|REGISTER SUCCESS)\s+-\s+username='(.*?)'")
+    LOG_PATTERN = r"\[(.*?)\]\s+(LOGIN FAILED|LOGIN SUCCESS|REGISTER FAILED|REGISTER SUCCESS)\s+-\s+username='(.*?)'"
     FAIL_WINDOW = 60
     FAIL_THRESHOLD = 4
     RAPID_THRESHOLD = 2
@@ -34,7 +34,7 @@ def run_analyzer():
             return
         logs.clear()
         for line in raw_data:
-            match = LOG_PATTERN.search(line)
+            match = re.search(LOG_PATTERN,line)
             if match:
                 timestamp = datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S")
                 status = match.group(2)
