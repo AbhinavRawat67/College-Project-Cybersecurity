@@ -1,11 +1,13 @@
 import tkinter as tk
 from tkinter import messagebox
-import json
-import os
-import hashlib
-import binascii
-import datetime
-from analyzer import run_analyzer  # Import the analyzer function
+import json, os, hashlib, binascii, datetime
+
+# Try to import the analyzer; if not present provide a safe fallback
+try:
+    from analyzer import run_analyzer  # Analyzer function
+except Exception:
+    def run_analyzer():
+        messagebox.showinfo("Analyzer", "Analyzer module not available.")
 
 CREDENTIALS_FILE = "users.json"
 LOG_FILE = "logs.txt"
@@ -33,7 +35,7 @@ def load_credentials():
     try:
         with open(CREDENTIALS_FILE, "r") as f:
             return json.load(f)
-    except:
+    except Exception:
         return {}
 
 def save_credentials(users_dict):
@@ -42,24 +44,19 @@ def save_credentials(users_dict):
 
 def evaluate_strength(pwd, labels, strength_label):
     special_chars = "!@#$%^&*()_+-=<>?/|{}[];:'\",.~`"
-
     length_ok = len(pwd) >= 8
     lower_ok = any(c.islower() for c in pwd)
     upper_ok = any(c.isupper() for c in pwd)
     digit_ok = any(c.isdigit() for c in pwd)
     spec_ok = any(c in special_chars for c in pwd)
 
-    ok_list = [length_ok, lower_ok, upper_ok, digit_ok, spec_ok]
-
-    # Update colors
     labels["length"].config(fg="green" if length_ok else "red")
     labels["lower"].config(fg="green" if lower_ok else "red")
     labels["upper"].config(fg="green" if upper_ok else "red")
     labels["digit"].config(fg="green" if digit_ok else "red")
     labels["spec"].config(fg="green" if spec_ok else "red")
 
-    score = sum(ok_list)
-
+    score = sum([length_ok, lower_ok, upper_ok, digit_ok, spec_ok])
     if score == 5:
         strength, color = "Very Strong", "green"
     elif score == 4:
@@ -73,213 +70,163 @@ def evaluate_strength(pwd, labels, strength_label):
 
     strength_label.config(text=f"Strength: {strength}", fg=color)
 
+def main():
+    users = load_credentials()
+    root = tk.Tk()
+    root.title("Simple Login System")
+    root.resizable(False, False)
 
-class LoginApp:
-    def __init__(self, master):
-        self.master = master
-        master.title("Simple Login System")
-        master.resizable(False, False)
-        self.users = load_credentials()
+    # Top-level container
+    top_frame = tk.Frame(root, padx=10, pady=10)
+    top_frame.pack()
 
-        self.frame_top = tk.Frame(master, padx=10, pady=10)
-        self.frame_top.pack()
+    # Header frame for the buttons (use pack inside header)
+    header_frame = tk.Frame(top_frame)
+    header_frame.pack(fill="x", pady=(0, 8))
 
-        # Mode buttons
-        self.mode_frame = tk.Frame(self.frame_top)
-        self.mode_frame.pack(fill="x", pady=(0,8))
-        self.login_btn = tk.Button(self.mode_frame, text="Login", width=12, command=self.show_login)
-        self.register_btn = tk.Button(self.mode_frame, text="Register", width=12, command=self.show_register)
-        self.analyzer_btn = tk.Button(self.mode_frame, text="Open Analyzer", width=15, command=run_analyzer)
-        self.login_btn.grid(row=0, column=0, padx=4)
-        self.register_btn.grid(row=0, column=1, padx=4)
-        self.analyzer_btn.grid(row=0, column=2, padx=4)
+    # Content frame for login/register (also pack-managed)
+    content_frame = tk.Frame(top_frame)
+    content_frame.pack()
 
-        # Login/Register frames
-        self.login_frame = self.build_login_frame(self.frame_top)
-        self.register_frame = self.build_register_frame(self.frame_top)
-        self.show_login()
+    # Create login and register frames as children of content_frame
+    login_frame = tk.Frame(content_frame)
+    register_frame = tk.Frame(content_frame)
 
     # ----------------------
-    # LOGIN FRAME
+    # LOGIN FRAME (uses grid inside login_frame)
     # ----------------------
-    def build_login_frame(self, parent):
-        f = tk.Frame(parent)
-        tk.Label(f, text="Username:").grid(row=0, column=0, sticky="e", pady=2)
-        self.login_username = tk.Entry(f)
-        self.login_username.grid(row=0, column=1, pady=2)
-        tk.Label(f, text="Password:").grid(row=1, column=0, sticky="e", pady=2)
-        self.login_password = tk.Entry(f, show="*")
-        self.login_password.grid(row=1, column=1, pady=2)
-        self.login_message = tk.Label(f, text="", fg="red")
-        self.login_message.grid(row=2, column=0, columnspan=2, pady=(4,0))
-        btn_frame = tk.Frame(f)
-        btn_frame.grid(row=3, column=0, columnspan=2, pady=8)
-        tk.Button(btn_frame, text="Login", width=12, command=self.attempt_login).pack(side="left", padx=6)
-        tk.Button(btn_frame, text="Clear", width=8, command=self.clear_login_fields).pack(side="left")
-        return f
+    tk.Label(login_frame, text="Username:").grid(row=0, column=0, sticky="e", pady=2)
+    login_username = tk.Entry(login_frame)
+    login_username.grid(row=0, column=1, pady=2)
+    tk.Label(login_frame, text="Password:").grid(row=1, column=0, sticky="e", pady=2)
+    login_password = tk.Entry(login_frame, show="*")
+    login_password.grid(row=1, column=1, pady=2)
+    login_message = tk.Label(login_frame, text="", fg="red")
+    login_message.grid(row=2, column=0, columnspan=2, pady=(4,0))
 
-    # ----------------------
-    # REGISTER FRAME
-    # ----------------------
-    def build_register_frame(self, parent):
-        f = tk.Frame(parent)
-        tk.Label(f, text="Choose Username:").grid(row=0, column=0, sticky="e", pady=2)
-        self.reg_username = tk.Entry(f)
-        self.reg_username.grid(row=0, column=1, pady=2)
-        tk.Label(f, text="Choose Password:").grid(row=1, column=0, sticky="e", pady=2)
-        self.reg_password = tk.Entry(f, show="*")
-        self.reg_password.grid(row=1, column=1, pady=2)
-        tk.Label(f, text="Confirm Password:").grid(row=2, column=0, sticky="e", pady=2)
-        self.reg_password_confirm = tk.Entry(f, show="*")
-        self.reg_password_confirm.grid(row=2, column=1, pady=2)
-        self.register_message = tk.Label(f, text="", fg="red")
-        self.register_message.grid(row=3, column=0, columnspan=2, pady=(4,0))
-        btn_frame = tk.Frame(f)
-        btn_frame.grid(row=4, column=0, columnspan=2, pady=8)
-        tk.Button(btn_frame, text="Register", width=12, command=self.attempt_register).pack(side="left", padx=6)
-        tk.Button(btn_frame, text="Clear", width=8, command=self.clear_register_fields).pack(side="left")
-        return f
-    def build_register_frame(self, parent):
-        f = tk.Frame(parent)
+    def clear_login_fields():
+        login_username.delete(0, tk.END)
+        login_password.delete(0, tk.END)
+        login_message.config(text="")
 
-        tk.Label(f, text="Choose Username:").grid(row=0, column=0, sticky="e", pady=2)
-        self.reg_username = tk.Entry(f)
-        self.reg_username.grid(row=0, column=1, pady=2)
+    def attempt_login():
+        username = login_username.get().strip()
+        pw = login_password.get()
+        if not username or not pw:
+            login_message.config(text="Enter both username and password.")
+            write_log(f"LOGIN FAILED - username='{username}' reason='missing fields'")
+            return
+        user_record = users.get(username)
+        if not user_record:
+            login_message.config(text="User does not exist.")
+            write_log(f"LOGIN FAILED - username='{username}' reason='user does not exist'")
+            return
+        if verify_password(user_record["hash"], user_record["salt"], pw, user_record.get("iterations", PBKDF2_ITERATIONS)):
+            login_message.config(text="", fg="green")
+            write_log(f"LOGIN SUCCESS - username='{username}'")
+            messagebox.showinfo("Login Successful", f"Welcome, {username}!")
+            clear_login_fields()
+        else:
+            login_message.config(text="Invalid password.", fg="red")
+            write_log(f"LOGIN FAILED - username='{username}' reason='wrong password'")
 
-        tk.Label(f, text="Choose Password:").grid(row=1, column=0, sticky="e", pady=2)
-        self.reg_password = tk.Entry(f, show="*")
-        self.reg_password.grid(row=1, column=1, pady=2)
-
-        # REAL-TIME STRENGTH LABEL
-        self.strength_label = tk.Label(f, text="Strength:", fg="maroon")
-        self.strength_label.grid(row=2, column=0, columnspan=2, pady=4)
-
-        # RULE LABELS
-        self.rule_labels = {
-            "length": tk.Label(f, text="• At least 8 characters", fg="red"),
-            "lower": tk.Label(f, text="• Lowercase letter", fg="red"),
-            "upper": tk.Label(f, text="• Uppercase letter", fg="red"),
-            "digit": tk.Label(f, text="• Number", fg="red"),
-            "spec": tk.Label(f, text="• Special character", fg="red")
-        }
-
-        r = 3
-        for lbl in self.rule_labels.values():
-            lbl.grid(row=r, column=0, columnspan=2, sticky="w")
-            r += 1
-
-        # BIND KEY RELEASE TO UPDATE STRENGTH
-        self.reg_password.bind(
-            "<KeyRelease>",
-            lambda e: evaluate_strength(self.reg_password.get(), self.rule_labels, self.strength_label)
-        )
-
-        tk.Label(f, text="Confirm Password:").grid(row=r, column=0, sticky="e", pady=2)
-        self.reg_password_confirm = tk.Entry(f, show="*")
-        self.reg_password_confirm.grid(row=r, column=1, pady=2)
-
-        self.register_message = tk.Label(f, text="", fg="red")
-        self.register_message.grid(row=r+1, column=0, columnspan=2, pady=(4,0))
-
-        btn_frame = tk.Frame(f)
-        btn_frame.grid(row=r+2, column=0, columnspan=2, pady=8)
-        tk.Button(btn_frame, text="Register", width=12, command=self.attempt_register).pack(side="left", padx=6)
-        tk.Button(btn_frame, text="Clear", width=8, command=self.clear_register_fields).pack(side="left")
-
-        return f
-
+    tk.Button(login_frame, text="Login", width=12, command=attempt_login).grid(row=3, column=0, pady=8)
+    tk.Button(login_frame, text="Clear", width=8, command=clear_login_fields).grid(row=3, column=1)
 
     # ----------------------
-    # SHOW/HIDE FRAMES
+    # REGISTER FRAME (uses grid inside register_frame)
     # ----------------------
-    def show_login(self):
-        self.register_frame.pack_forget()
-        self.login_frame.pack()
-        self.login_message.config(text="")
-        self.clear_login_fields()
+    tk.Label(register_frame, text="Choose Username:").grid(row=0, column=0, sticky="e", pady=2)
+    reg_username = tk.Entry(register_frame)
+    reg_username.grid(row=0, column=1, pady=2)
+    tk.Label(register_frame, text="Choose Password:").grid(row=1, column=0, sticky="e", pady=2)
+    reg_password = tk.Entry(register_frame, show="*")
+    reg_password.grid(row=1, column=1, pady=2)
 
-    def show_register(self):
-        self.login_frame.pack_forget()
-        self.register_frame.pack()
-        self.register_message.config(text="")
-        self.clear_register_fields()
+    strength_label = tk.Label(register_frame, text="Strength:", fg="maroon")
+    strength_label.grid(row=2, column=0, columnspan=2, pady=4)
 
-    def clear_login_fields(self):
-        self.login_username.delete(0, tk.END)
-        self.login_password.delete(0, tk.END)
-        self.login_message.config(text="")
+    rule_labels = {
+        "length": tk.Label(register_frame, text="• At least 8 characters", fg="red"),
+        "lower": tk.Label(register_frame, text="• Lowercase letter", fg="red"),
+        "upper": tk.Label(register_frame, text="• Uppercase letter", fg="red"),
+        "digit": tk.Label(register_frame, text="• Number", fg="red"),
+        "spec": tk.Label(register_frame, text="• Special character", fg="red")
+    }
 
-    def clear_register_fields(self):
-        self.reg_username.delete(0, tk.END)
-        self.reg_password.delete(0, tk.END)
-        self.reg_password_confirm.delete(0, tk.END)
-        self.register_message.config(text="")
+    r = 3
+    for lbl in rule_labels.values():
+        lbl.grid(row=r, column=0, columnspan=2, sticky="w")
+        r += 1
 
-    # ----------------------
-    # REGISTER / LOGIN LOGIC
-    # ----------------------
-    def attempt_register(self):
-        username = self.reg_username.get().strip()
-        pw = self.reg_password.get()
-        pw_conf = self.reg_password_confirm.get()
+    tk.Label(register_frame, text="Confirm Password:").grid(row=r, column=0, sticky="e", pady=2)
+    reg_password_confirm = tk.Entry(register_frame, show="*")
+    reg_password_confirm.grid(row=r, column=1, pady=2)
+
+    register_message = tk.Label(register_frame, text="", fg="red")
+    register_message.grid(row=r+1, column=0, columnspan=2, pady=(4,0))
+
+    def clear_register_fields():
+        reg_username.delete(0, tk.END)
+        reg_password.delete(0, tk.END)
+        reg_password_confirm.delete(0, tk.END)
+        register_message.config(text="")
+
+    def attempt_register():
+        username = reg_username.get().strip()
+        pw = reg_password.get()
+        pw_conf = reg_password_confirm.get()
         if not username:
-            self.register_message.config(text="Username cannot be empty.")
+            register_message.config(text="Username cannot be empty.")
             write_log(f"REGISTER FAILED - username='{username}' reason='username empty'")
             return
         if len(pw) < 6:
-            self.register_message.config(text="Password must be at least 6 characters.")
+            register_message.config(text="Password must be at least 6 characters.")
             write_log(f"REGISTER FAILED - username='{username}' reason='password too short'")
             return
         if pw != pw_conf:
-            self.register_message.config(text="Passwords do not match.")
+            register_message.config(text="Passwords do not match.")
             write_log(f"REGISTER FAILED - username='{username}' reason='password mismatch'")
             return
-        if username in self.users:
-            self.register_message.config(text="Username already exists.")
+        if username in users:
+            register_message.config(text="Username already exists.")
             write_log(f"REGISTER FAILED - username='{username}' reason='username exists'")
             return
         salt, hash_hex, iterations = hash_password(pw)
-        self.users[username] = {
-            "salt": binascii.hexlify(salt).decode("ascii"),
-            "hash": hash_hex,
-            "iterations": iterations
-        }
-        save_credentials(self.users)
+        users[username] = {"salt": binascii.hexlify(salt).decode("ascii"), "hash": hash_hex, "iterations": iterations}
+        save_credentials(users)
         write_log(f"REGISTER SUCCESS - username='{username}'")
         messagebox.showinfo("Success", f"User '{username}' registered successfully.")
-        self.clear_register_fields()
-        self.show_login()
+        clear_register_fields()
+        show_login()
 
-    def attempt_login(self):
-        username = self.login_username.get().strip()
-        pw = self.login_password.get()
-        if not username or not pw:
-            self.login_message.config(text="Enter both username and password.")
-            write_log(f"LOGIN FAILED - username='{username}' reason='missing fields'")
-            return
-        user_record = self.users.get(username)
-        if not user_record:
-            self.login_message.config(text="User does not exist.")
-            write_log(f"LOGIN FAILED - username='{username}' reason='user does not exist'")
-            return
-        stored_hash = user_record["hash"]
-        stored_salt = user_record["salt"]
-        iterations = user_record.get("iterations", PBKDF2_ITERATIONS)
-        if verify_password(stored_hash, stored_salt, pw, iterations):
-            self.login_message.config(text="", fg="green")
-            write_log(f"LOGIN SUCCESS - username='{username}'")
-            messagebox.showinfo("Login Successful", f"Welcome, {username}!")
-            self.clear_login_fields()
-        else:
-            self.login_message.config(text="Invalid password.", fg="red")
-            write_log(f"LOGIN FAILED - username='{username}' reason='wrong password'")
+    reg_password.bind("<KeyRelease>", lambda e: evaluate_strength(reg_password.get(), rule_labels, strength_label))
 
-# ----------------------
-# MAIN
-# ----------------------
-def main():
-    root = tk.Tk()
-    app = LoginApp(root)
+    tk.Button(register_frame, text="Register", width=12, command=attempt_register).grid(row=r+2, column=0, pady=8)
+    tk.Button(register_frame, text="Clear", width=8, command=clear_register_fields).grid(row=r+2, column=1)
+
+    # Frame switch functions
+    def show_login():
+        register_frame.pack_forget()
+        login_frame.pack()
+        login_message.config(text="")
+        clear_login_fields()
+
+    def show_register():
+        login_frame.pack_forget()
+        register_frame.pack()
+        register_message.config(text="")
+        clear_register_fields()
+
+    # ----------------------
+    # Top buttons go into header_frame (use pack, so no mixing in top_frame)
+    # ----------------------
+    tk.Button(header_frame, text="Login", width=12, command=show_login).pack(side="left", padx=4)
+    tk.Button(header_frame, text="Register", width=12, command=show_register).pack(side="left", padx=4)
+    tk.Button(header_frame, text="Open Analyzer", width=15, command=run_analyzer).pack(side="left", padx=4)
+
+    # show default frame
+    show_login()
     root.mainloop()
 
 if __name__ == "__main__":
